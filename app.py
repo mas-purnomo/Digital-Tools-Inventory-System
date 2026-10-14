@@ -3,6 +3,7 @@ from html import escape
 from pathlib import Path
 import re
 import secrets
+from urllib.parse import quote
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -67,12 +68,11 @@ st.set_page_config(page_title="Sistem Alat Gudang")
 
 @st.cache_resource
 def connect_spreadsheet():
-    if "gcp_service_account" in st.secrets:
-        client = gspread.service_account_from_dict(dict(st.secrets["gcp_service_account"]))
-    elif CREDENTIALS_FILE.exists():
+    if CREDENTIALS_FILE.exists():
         client = gspread.service_account(filename=str(CREDENTIALS_FILE))
     else:
-        raise FileNotFoundError("Kredensial Google belum disiapkan di .streamlit/service_account.json atau Streamlit Secrets.")
+        service_account = st.secrets["gcp_service_account"]
+        client = gspread.service_account_from_dict(dict(service_account))
     return client.open_by_key(SPREADSHEET_ID)
 
 
@@ -92,9 +92,27 @@ def read_records(worksheet, expected_headers):
     for row in values[1:]:
         padded = row + [""] * max(0, len(expected_headers) - len(row))
         record = dict(zip(expected_headers, padded[: len(expected_headers)]))
+        if expected_headers == TRANSACTION_HEADERS:
+            token = transaction_token_from_row(padded)
+            if token and not record.get("Token Persetujuan"):
+                record["Waktu Persetujuan"] = ""
+                record["Token Persetujuan"] = token
         if any(str(value).strip() for value in record.values()):
             records.append(record)
     return records
+
+
+def transaction_token_from_row(row):
+    padded = row + [""] * max(0, len(TRANSACTION_HEADERS) - len(row))
+    token = padded[16]
+    if (
+        not token
+        and padded[12] == "Menunggu Persetujuan"
+        and re.fullmatch(r"[A-Za-z0-9_-]{20,}", padded[15])
+    ):
+        # Legacy rows placed the token in Waktu Persetujuan instead of Token Persetujuan.
+        return padded[15]
+    return token
 
 
 def make_cell_data(values):
@@ -196,11 +214,62 @@ def current_timestamp():
     return datetime.now(TIMEZONE).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def whatsapp_url(phone, message):
+    normalized_phone = re.sub(r"\D", "", phone or "")
+    if normalized_phone.startswith("00"):
+        normalized_phone = normalized_phone[2:]
+    if normalized_phone.startswith("0"):
+        normalized_phone = "62" + normalized_phone[1:]
+    elif normalized_phone.startswith("8"):
+        normalized_phone = "62" + normalized_phone
+    if len(normalized_phone) < 8:
+        return ""
+    return f"https://wa.me/{normalized_phone}?text={quote(message, safe='')}"
+
+
 def show_records(records, alt_text):
     if records:
         st.dataframe(records, hide_index=True, alt=alt_text)
     else:
         st.info("Belum ada data.")
+
+
+def update_asset_details(spreadsheet, asset_sheet, code, name, rack, responsible, photo_url):
+    matching_rows = [
+        (row_number, row)
+        for row_number, row in enumerate(asset_sheet.get_all_values()[1:], start=2)
+        if row and row[0].strip() == code
+    ]
+    if not matching_rows:
+        st.error("Kode alat tidak ditemukan.")
+        return
+    if len(matching_rows) > 1:
+        st.error("Kode alat muncul lebih dari sekali di Google Sheet. Rapikan data sebelum mengedit.")
+        return
+    if not name.strip():
+        st.error("Nama alat wajib diisi.")
+        return
+
+    row_number, _ = matching_rows[0]
+    editable_values = {1: name.strip(), 5: rack.strip(), 7: responsible.strip(), 8: photo_url.strip()}
+    requests = []
+    for column_index, value in editable_values.items():
+        requests.append({
+            "updateCells": {
+                "range": {
+                    "sheetId": asset_sheet.id,
+                    "startRowIndex": row_number - 1,
+                    "endRowIndex": row_number,
+                    "startColumnIndex": column_index,
+                    "endColumnIndex": column_index + 1,
+                },
+                "rows": [{"values": make_cell_data([value])}],
+                "fields": "userEnteredValue",
+            }
+        })
+    spreadsheet.batch_update({"requests": requests})
+    st.session_state["notice"] = f"Data alat {code} berhasil diperbarui."
+    st.rerun()
 
 
 def derive_latest_transactions(transactions):
@@ -411,6 +480,7 @@ def submit_transaction(
         note.strip(),
         approval_status,
         "",
+        recipient_phone.strip() if transaction_type in OUTGOING_TYPES else "",
         "",
         approval_token,
         "",
@@ -455,11 +525,14 @@ def receipt_html(transaction, phone, approved_at):
 def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name, phone):
     raw_transactions = transaction_sheet.get_all_values()
     found = [(index + 1, row) for index, row in enumerate(raw_transactions[1:], start=1)
-             if len(row) > 16 and secrets.compare_digest(row[16], token)]
+             if secrets.compare_digest(transaction_token_from_row(row), token)]
     if len(found) != 1:
         return None, "Tautan persetujuan tidak ditemukan atau tidak valid."
     transaction_row, raw_transaction = found[0]
     transaction = dict(zip(TRANSACTION_HEADERS, raw_transaction + [""] * (len(TRANSACTION_HEADERS) - len(raw_transaction))))
+    if not transaction.get("Token Persetujuan"):
+        transaction["Token Persetujuan"] = transaction_token_from_row(raw_transaction)
+        transaction["Waktu Persetujuan"] = ""
     if transaction.get("Status Persetujuan") == "Disetujui":
         return {**transaction, "Telepon/WA Penerima": transaction.get("Telepon/WA Penerima", "")}, "already_approved"
     if transaction.get("Status Persetujuan") != "Menunggu Persetujuan":
@@ -605,6 +678,31 @@ elif menu == "Daftar alat":
     ]
     show_records(filtered, "Daftar alat beserta status dan lokasi terkini")
 
+    with st.expander("Edit data alat"):
+        st.caption("Kode, kondisi, status, lokasi, dan proyek/penyewa dikelola melalui Catat transaksi agar riwayat stok tetap konsisten.")
+        edit_codes = [asset.get("Kode Alat", "") for asset in assets if asset.get("Kode Alat")]
+        if not edit_codes:
+            st.info("Belum ada alat yang dapat diedit.")
+        else:
+            edit_code = st.selectbox("Pilih kode alat", edit_codes, key="edit_asset_code")
+            edit_asset = next(asset for asset in assets if asset.get("Kode Alat") == edit_code)
+            with st.form("edit_asset_form"):
+                edit_name = st.text_input("Nama alat", value=edit_asset.get("Nama Alat", ""), key=f"edit_name_{edit_code}")
+                edit_rack = st.text_input("Rak", value=edit_asset.get("Rak", ""), key=f"edit_rack_{edit_code}")
+                edit_responsible = st.text_input("Penanggung jawab", value=edit_asset.get("Penanggung Jawab", ""), key=f"edit_responsible_{edit_code}")
+                edit_photo_url = st.text_input("Foto alat URL", value=edit_asset.get("Foto Alat URL", ""), key=f"edit_photo_{edit_code}")
+                edit_submitted = st.form_submit_button("Simpan perubahan", type="primary")
+            if edit_submitted:
+                update_asset_details(
+                    spreadsheet,
+                    asset_sheet,
+                    edit_code,
+                    edit_name,
+                    edit_rack,
+                    edit_responsible,
+                    edit_photo_url,
+                )
+
     with st.expander("Daftarkan alat baru"):
         with st.form("new_asset_form"):
             code = st.text_input("Kode alat", placeholder="Contoh: E-01")
@@ -729,7 +827,26 @@ elif menu == "Catat transaksi":
             link = f"{base_url}?persetujuan={transaction['Token Persetujuan']}"
             st.write(f"{transaction.get('Kode Alat', '')} · {transaction.get('Proyek/Penyewa', '')} · {transaction.get('ID Transaksi', '')}")
             st.code(link, language=None)
-        st.caption("Kirim tautan terkait kepada penerima. Tautan localhost hanya berfungsi di komputer ini sampai aplikasi dihosting online.")
+            message = (
+                "Halo, mohon konfirmasi penerimaan alat berikut.\n"
+                f"ID transaksi: {transaction.get('ID Transaksi', '')}\n"
+                f"Kode alat: {transaction.get('Kode Alat', '')}\n"
+                f"Tujuan: {transaction.get('Proyek/Penyewa', '')}\n"
+                f"Tanggal rencana kembali: {transaction.get('Tanggal Rencana Kembali', '')}\n\n"
+                f"Buka tautan ini untuk meninjau dan menyetujui penerimaan:\n{link}"
+            )
+            recipient_phone = transaction.get("Telepon/WA Penerima", "")
+            if not recipient_phone:
+                recipient_phone = st.text_input(
+                    "Nomor WhatsApp penerima",
+                    key=f"pending_phone_{transaction.get('ID Transaksi', transaction.get('Kode Alat', 'alat'))}",
+                )
+            send_url = whatsapp_url(recipient_phone, message)
+            if send_url:
+                st.link_button("Kirim via WhatsApp", send_url)
+            else:
+                st.caption("Nomor WhatsApp belum tersedia atau formatnya tidak valid.")
+        st.caption("Tombol membuka chat WhatsApp dengan pesan siap kirim; petugas tetap perlu menekan Kirim. Tautan localhost hanya berfungsi di komputer ini sampai aplikasi dihosting online.")
 
 elif menu == "Laporan":
     st.subheader("Laporan kontrol alat")
