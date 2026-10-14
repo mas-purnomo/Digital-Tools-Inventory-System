@@ -25,6 +25,7 @@ ASSET_HEADERS = [
     "Proyek/Penyewa",
     "Penanggung Jawab",
     "Foto Alat URL",
+    "Tipe/Merk",
 ]
 TRANSACTION_HEADERS = [
     "ID Transaksi",
@@ -48,22 +49,76 @@ TRANSACTION_HEADERS = [
 ]
 CONSENT_STATEMENT = "Saya menyatakan telah menerima alat sesuai daftar dan bertanggung jawab atas penggunaannya."
 CONDITIONS = ["Baik", "Rusak", "Perlu Perawatan"]
-WAREHOUSES = ["Gudang-1", "Gudang-2"]
+WAREHOUSE_LABELS = {"Gudang-1": "Gudang Polonia", "Gudang-2": "Gudang KA"}
+WAREHOUSES = list(WAREHOUSE_LABELS.values())
 ACTIVE_OUT_STATUSES = ["Dipakai di Proyek", "Disewa Keluar", "Dipinjam"]
 TRANSACTION_TYPES = [
-    "Pengeluaran ke Proyek",
+    "Pengeluaran ke Proyek Sendiri",
     "Pengeluaran Sewa",
     "Peminjaman",
     "Pengembalian",
     "Pindah Gudang",
     "Kehilangan",
     "Penghapusan",
-    "Pembatalan pengeluaran (latihan)",
+    "Pembatalan Pengeluaran",
 ]
-OUTGOING_TYPES = ["Pengeluaran ke Proyek", "Pengeluaran Sewa", "Peminjaman"]
+TRANSACTION_LABELS = {
+    "Pengeluaran ke Proyek": "Pengeluaran ke Proyek Sendiri",
+    "Pembatalan pengeluaran (latihan)": "Pembatalan Pengeluaran",
+    "Pembatalan Pengeluaran (latihan)": "Pembatalan Pengeluaran",
+}
+OUTGOING_TYPES = ["Pengeluaran ke Proyek Sendiri", "Pengeluaran ke Proyek", "Pengeluaran Sewa", "Peminjaman"]
 
 
-st.set_page_config(page_title="Sistem Alat Gudang")
+st.set_page_config(page_title="Digital Inventory Control")
+
+
+def authenticate_user():
+    if "auth" not in st.secrets:
+        st.error("Login Google belum dikonfigurasi untuk aplikasi ini.")
+        st.info("Developer perlu mengatur OAuth Google dan daftar akun pada Secrets Streamlit sebelum aplikasi dapat digunakan.")
+        st.stop()
+
+    if not st.user.is_logged_in:
+        st.title("Digital Inventory Control")
+        st.write("Silakan masuk dengan akun Google yang telah diizinkan.")
+        st.button("Masuk dengan Google", on_click=st.login, type="primary")
+        st.stop()
+
+    email = str(st.user.get("email", "")).strip().casefold()
+    access = st.secrets.get("app_access", {})
+    developer_email = str(access.get("developer_email", "")).strip().casefold()
+    officer_emails = {
+        str(item).strip().casefold()
+        for item in access.get("officer_emails", [])
+        if str(item).strip()
+    }
+
+    if email and email == developer_email:
+        role = "Developer"
+    elif email and email in officer_emails:
+        role = "Petugas Gudang"
+    else:
+        st.error("Akun Google ini belum diberi akses. Hubungi Developer aplikasi.")
+        st.button("Keluar", on_click=st.logout)
+        st.stop()
+
+    st.sidebar.caption(f"Masuk sebagai: {st.user.get('name', email)}")
+    st.sidebar.caption(f"Peran: {role}")
+    st.sidebar.button("Keluar", on_click=st.logout)
+    return role, str(st.user.get("name", email)).strip() or email
+
+
+approval_token = st.query_params.get("persetujuan", "")
+if approval_token:
+    user_role = "Penerima"
+    authenticated_user_name = ""
+else:
+    user_role, authenticated_user_name = authenticate_user()
+
+
+def display_location(value):
+    return WAREHOUSE_LABELS.get(value, value)
 
 
 @st.cache_resource
@@ -92,6 +147,14 @@ def read_records(worksheet, expected_headers):
     for row in values[1:]:
         padded = row + [""] * max(0, len(expected_headers) - len(row))
         record = dict(zip(expected_headers, padded[: len(expected_headers)]))
+        if expected_headers == ASSET_HEADERS:
+            record["Lokasi"] = display_location(record.get("Lokasi", ""))
+        elif expected_headers == TRANSACTION_HEADERS:
+            record["Jenis Transaksi"] = TRANSACTION_LABELS.get(
+                record.get("Jenis Transaksi", ""), record.get("Jenis Transaksi", "")
+            )
+            for field in ("Lokasi Asal", "Lokasi Tujuan"):
+                record[field] = display_location(record.get(field, ""))
         if expected_headers == TRANSACTION_HEADERS:
             token = transaction_token_from_row(padded)
             if token and not record.get("Token Persetujuan"):
@@ -189,6 +252,28 @@ def add_missing_transaction_columns(spreadsheet, transaction_sheet):
         }]})
 
 
+def add_missing_asset_columns(spreadsheet, asset_sheet):
+    headers = asset_sheet.row_values(1)
+    legacy_headers = ASSET_HEADERS[:-1]
+    if headers[: len(legacy_headers)] != legacy_headers:
+        raise ValueError("Judul kolom tab Alat belum sesuai. Periksa baris pertama Google Sheet.")
+    missing = ASSET_HEADERS[len(headers):]
+    if missing:
+        spreadsheet.batch_update({"requests": [{
+            "updateCells": {
+                "range": {
+                    "sheetId": asset_sheet.id,
+                    "startRowIndex": 0,
+                    "endRowIndex": 1,
+                    "startColumnIndex": len(headers),
+                    "endColumnIndex": len(headers) + len(missing),
+                },
+                "rows": [{"values": make_cell_data(missing)}],
+                "fields": "userEnteredValue",
+            }
+        }]})
+
+
 def update_cells_request(sheet_id, row_number, values):
     return {
         "updateCells": {
@@ -234,7 +319,7 @@ def show_records(records, alt_text):
         st.info("Belum ada data.")
 
 
-def update_asset_details(spreadsheet, asset_sheet, code, name, rack, responsible, photo_url):
+def update_asset_details(spreadsheet, asset_sheet, code, name, rack, responsible, photo_url, type_brand):
     matching_rows = [
         (row_number, row)
         for row_number, row in enumerate(asset_sheet.get_all_values()[1:], start=2)
@@ -251,7 +336,10 @@ def update_asset_details(spreadsheet, asset_sheet, code, name, rack, responsible
         return
 
     row_number, _ = matching_rows[0]
-    editable_values = {1: name.strip(), 5: rack.strip(), 7: responsible.strip(), 8: photo_url.strip()}
+    editable_values = {
+        1: name.strip(), 5: rack.strip(), 7: responsible.strip(),
+        8: photo_url.strip(), 9: type_brand.strip(),
+    }
     requests = []
     for column_index, value in editable_values.items():
         requests.append({
@@ -291,9 +379,9 @@ def submit_new_asset(spreadsheet, asset_sheet, transaction_sheet, assets, values
         st.error("Kode alat tersebut sudah terdaftar.")
         return
 
-    name, condition, warehouse, rack, responsible, photo_url, officer, note = values[1:]
+    name, condition, warehouse, rack, responsible, photo_url, type_brand, officer, note = values[1:]
     status = "Tersedia" if condition == "Baik" else condition
-    asset_values = [code, name.strip(), condition, status, warehouse, rack.strip(), "", responsible.strip(), photo_url.strip()]
+    asset_values = [code, name.strip(), condition, status, warehouse, rack.strip(), "", responsible.strip(), photo_url.strip(), type_brand.strip()]
     transaction_values = [
         transaction_id(),
         current_timestamp(),
@@ -357,14 +445,14 @@ def submit_transaction(
     padded_asset = raw_asset + [""] * max(0, len(ASSET_HEADERS) - len(raw_asset))
     asset = dict(zip(ASSET_HEADERS, padded_asset[: len(ASSET_HEADERS)]))
     old_status = asset.get("Status", "").strip()
-    old_location = asset.get("Lokasi", "").strip()
+    old_location = display_location(asset.get("Lokasi", "").strip())
     updated = dict(asset)
     destination_label = ""
     due_text = ""
     approval_status = "Tidak Perlu"
     approval_token = ""
 
-    if transaction_type == "Pembatalan pengeluaran (latihan)":
+    if transaction_type == "Pembatalan Pengeluaran":
         events = [
             transaction
             for transaction in transactions
@@ -519,7 +607,7 @@ def receipt_html(transaction, phone, approved_at):
     <style>body{{font:16px Arial,sans-serif;max-width:760px;margin:40px auto;color:#222}}h1{{font-size:24px}}table{{border-collapse:collapse;width:100%}}th,td{{border:1px solid #bbb;padding:10px;text-align:left}}th{{width:34%;background:#f2f4f7}}.statement{{margin-top:24px;padding:16px;border:1px solid #bbb}}</style>
     <h1>Bukti Persetujuan Penerimaan Alat</h1><table>{rows}</table>
     <p class=\"statement\">{escape(statement)}</p>
-    <p>Dokumen ini dibuat otomatis oleh Sistem Alat Gudang.</p></html>"""
+    <p>Dokumen ini dibuat otomatis oleh Digital Inventory Control.</p></html>"""
 
 
 def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name, phone):
@@ -547,6 +635,7 @@ def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name
     asset = dict(zip(ASSET_HEADERS, raw_asset + [""] * (len(ASSET_HEADERS) - len(raw_asset))))
     status_by_type = {
         "Pengeluaran ke Proyek": "Dipakai di Proyek",
+        "Pengeluaran ke Proyek Sendiri": "Dipakai di Proyek",
         "Pengeluaran Sewa": "Disewa Keluar",
         "Peminjaman": "Dipinjam",
     }
@@ -565,6 +654,7 @@ def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name
         asset.get("Kode Alat", ""), asset.get("Nama Alat", ""), asset.get("Kondisi", ""),
         final_status, asset.get("Lokasi", ""), asset.get("Rak", ""),
         asset.get("Proyek/Penyewa", ""), name.strip(), asset.get("Foto Alat URL", ""),
+        asset.get("Tipe/Merk", ""),
     ]
     updated_transaction = [transaction.get(header, "") for header in TRANSACTION_HEADERS]
     spreadsheet.batch_update({"requests": [
@@ -574,7 +664,7 @@ def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name
     return transaction, approved_at
 
 
-st.title("Sistem Alat Gudang")
+st.title("Digital Inventory Control")
 if "notice" in st.session_state:
     st.success(st.session_state.pop("notice"))
 
@@ -582,6 +672,7 @@ try:
     spreadsheet = connect_spreadsheet()
     asset_sheet = spreadsheet.worksheet("Alat")
     transaction_sheet = spreadsheet.worksheet("Transaksi")
+    add_missing_asset_columns(spreadsheet, asset_sheet)
     add_missing_transaction_columns(spreadsheet, transaction_sheet)
     assets = read_records(asset_sheet, ASSET_HEADERS)
     transactions = read_records(transaction_sheet, TRANSACTION_HEADERS)
@@ -591,7 +682,6 @@ except Exception as error:
     st.code(str(error))
     st.stop()
 
-approval_token = st.query_params.get("persetujuan", "")
 if approval_token:
     st.subheader("Persetujuan penerimaan alat")
     transaction = next(
@@ -691,6 +781,7 @@ elif menu == "Daftar alat":
                 edit_rack = st.text_input("Rak", value=edit_asset.get("Rak", ""), key=f"edit_rack_{edit_code}")
                 edit_responsible = st.text_input("Penanggung jawab", value=edit_asset.get("Penanggung Jawab", ""), key=f"edit_responsible_{edit_code}")
                 edit_photo_url = st.text_input("Foto alat URL", value=edit_asset.get("Foto Alat URL", ""), key=f"edit_photo_{edit_code}")
+                edit_type_brand = st.text_input("Tipe/Merk", value=edit_asset.get("Tipe/Merk", ""), key=f"edit_type_brand_{edit_code}")
                 edit_submitted = st.form_submit_button("Simpan perubahan", type="primary")
             if edit_submitted:
                 update_asset_details(
@@ -701,18 +792,21 @@ elif menu == "Daftar alat":
                     edit_rack,
                     edit_responsible,
                     edit_photo_url,
+                    edit_type_brand,
                 )
 
     with st.expander("Daftarkan alat baru"):
         with st.form("new_asset_form"):
             code = st.text_input("Kode alat", placeholder="Contoh: E-01")
             name = st.text_input("Nama alat")
+            type_brand = st.text_input("Tipe/Merk", placeholder="Contoh: Bosch GSH 500")
             condition = st.selectbox("Kondisi saat diterima", CONDITIONS)
             warehouse = st.selectbox("Gudang", WAREHOUSES)
             rack = st.text_input("Rak (opsional)")
             responsible = st.text_input("Penanggung jawab (opsional)")
             photo_url = st.text_input("Foto alat URL (opsional)")
-            officer = st.text_input("Petugas yang mencatat")
+            st.text_input("Petugas yang mencatat", value=authenticated_user_name, disabled=True)
+            officer = f"{authenticated_user_name} <{st.user.get('email', '')}>"
             note = st.text_input("Catatan penerimaan (opsional)")
             submitted = st.form_submit_button("Simpan alat", type="primary")
         if submitted:
@@ -724,18 +818,18 @@ elif menu == "Daftar alat":
                     asset_sheet,
                     transaction_sheet,
                     assets,
-                    [code, name, condition, warehouse, rack, responsible, photo_url, officer, note],
+                    [code, name, condition, warehouse, rack, responsible, photo_url, type_brand, officer, note],
                 )
 
 elif menu == "Catat transaksi":
     st.subheader("Catat transaksi alat")
     transaction_type = st.selectbox("Jenis transaksi", TRANSACTION_TYPES)
 
-    if transaction_type in ("Pengeluaran ke Proyek", "Pengeluaran Sewa", "Peminjaman", "Pindah Gudang"):
+    if transaction_type in ("Pengeluaran ke Proyek Sendiri", "Pengeluaran ke Proyek", "Pengeluaran Sewa", "Peminjaman", "Pindah Gudang"):
         eligible_assets = [asset for asset in assets if asset.get("Status") == "Tersedia"]
     elif transaction_type == "Pengembalian":
         eligible_assets = [asset for asset in assets if asset.get("Status") in ACTIVE_OUT_STATUSES]
-    elif transaction_type == "Pembatalan pengeluaran (latihan)":
+    elif transaction_type == "Pembatalan Pengeluaran":
         latest = derive_latest_transactions(transactions)
         eligible_assets = [
             asset
@@ -752,7 +846,7 @@ elif menu == "Catat transaksi":
     else:
         with st.form("transaction_form"):
             code = st.selectbox("Kode alat", code_options)
-            if transaction_type == "Pembatalan pengeluaran (latihan)":
+            if transaction_type == "Pembatalan Pengeluaran":
                 st.info("Koreksi ini mengembalikan status alat sebelum pengeluaran latihan dan menyimpan jejak koreksinya.")
                 condition = ""
             else:
@@ -766,8 +860,8 @@ elif menu == "Catat transaksi":
             project_or_lender = ""
             responsible = ""
             due_date = None
-            if transaction_type in ("Pengeluaran ke Proyek", "Pengeluaran Sewa", "Peminjaman"):
-                if transaction_type == "Pengeluaran ke Proyek":
+            if transaction_type in ("Pengeluaran ke Proyek Sendiri", "Pengeluaran ke Proyek", "Pengeluaran Sewa", "Peminjaman"):
+                if transaction_type in ("Pengeluaran ke Proyek Sendiri", "Pengeluaran ke Proyek"):
                     project_or_lender = st.text_input("Nama proyek")
                 elif transaction_type == "Pengeluaran Sewa":
                     project_or_lender = st.text_input("Nama penyewa")
@@ -788,7 +882,8 @@ elif menu == "Catat transaksi":
 
             if transaction_type not in OUTGOING_TYPES:
                 recipient_phone = ""
-            officer = st.text_input("Petugas yang mencatat")
+            st.text_input("Petugas yang mencatat", value=authenticated_user_name, disabled=True)
+            officer = f"{authenticated_user_name} <{st.user.get('email', '')}>"
             note = st.text_area("Catatan / alasan")
             submitted = st.form_submit_button("Simpan transaksi", type="primary")
 
