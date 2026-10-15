@@ -665,7 +665,6 @@ def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name
 
 
 st.title("Digital Inventory Control")
-st.caption("Developed by : mas_purnomo_st")
 if "notice" in st.session_state:
     st.success(st.session_state.pop("notice"))
 
@@ -680,8 +679,7 @@ try:
 except Exception as error:
     st.error("Aplikasi belum dapat membaca Google Sheet.")
     st.caption("Pastikan koneksi internet dan izin service account masih aktif.")
-    error_detail = str(error) or repr(error) or type(error).__name__
-    st.code(f"{type(error).__name__}: {error_detail}")
+    st.code(str(error))
     st.stop()
 
 if approval_token:
