@@ -665,6 +665,7 @@ def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name
 
 
 st.title("Digital Inventory Control")
+st.caption("Developed by : mas_purnomo_st")
 if "notice" in st.session_state:
     st.success(st.session_state.pop("notice"))
 
