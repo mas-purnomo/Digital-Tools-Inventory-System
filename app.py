@@ -679,7 +679,8 @@ try:
 except Exception as error:
     st.error("Aplikasi belum dapat membaca Google Sheet.")
     st.caption("Pastikan koneksi internet dan izin service account masih aktif.")
-    st.code(str(error))
+        error_detail = str(error) or repr(error) or type(error).__name__
+    st.code(f"{type(error).__name__}: {error_detail}")
     st.stop()
 
 if approval_token:
