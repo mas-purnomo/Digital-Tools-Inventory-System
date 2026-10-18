@@ -370,8 +370,32 @@ def derive_latest_transactions(transactions):
     return latest
 
 
+def next_asset_code(assets):
+    """Return the next unused asset code, keeping at least two digits."""
+    used_numbers = []
+    for asset in assets:
+        match = re.fullmatch(r"E-(\d+)", asset.get("Kode Alat", "").strip(), re.IGNORECASE)
+        if match:
+            used_numbers.append(int(match.group(1)))
+
+    return f"E-{max(used_numbers, default=0) + 1:02d}"
+
+
+def asset_code_sort_key(code):
+    """Sort numbered E-codes numerically, then other codes alphabetically."""
+    code = str(code or "").strip()
+    match = re.fullmatch(r"E-(\d+)", code, re.IGNORECASE)
+    if match:
+        return (0, int(match.group(1)), code.casefold())
+    return (1, 0, code.casefold())
+
+
 def submit_new_asset(spreadsheet, asset_sheet, transaction_sheet, assets, values):
     code = values[0].strip().upper()
+    expected_code = next_asset_code(assets)
+    if code != expected_code:
+        st.error(f"Nomor urut alat berubah. Muat ulang halaman; kode berikutnya adalah {expected_code}.")
+        return
     if not re.fullmatch(r"E-\d{2,}", code):
         st.error("Gunakan format kode seperti E-01 atau E-100.")
         return
@@ -757,21 +781,27 @@ elif menu == "Daftar alat":
     search = st.text_input("Cari kode atau nama alat", type="search")
     status_options = ["Semua"] + sorted({asset.get("Status", "") for asset in assets if asset.get("Status")})
     selected_status = st.selectbox("Status", status_options)
-    filtered = [
-        asset
-        for asset in assets
-        if (selected_status == "Semua" or asset.get("Status") == selected_status)
-        and (
-            not search.strip()
-            or search.strip().casefold() in asset.get("Kode Alat", "").casefold()
-            or search.strip().casefold() in asset.get("Nama Alat", "").casefold()
-        )
-    ]
+    filtered = sorted(
+        [
+            asset
+            for asset in assets
+            if (selected_status == "Semua" or asset.get("Status") == selected_status)
+            and (
+                not search.strip()
+                or search.strip().casefold() in asset.get("Kode Alat", "").casefold()
+                or search.strip().casefold() in asset.get("Nama Alat", "").casefold()
+            )
+        ],
+        key=lambda asset: asset_code_sort_key(asset.get("Kode Alat", "")),
+    )
     show_records(filtered, "Daftar alat beserta status dan lokasi terkini")
 
     with st.expander("Edit data alat"):
         st.caption("Kode, kondisi, status, lokasi, dan proyek/penyewa dikelola melalui Catat transaksi agar riwayat stok tetap konsisten.")
-        edit_codes = [asset.get("Kode Alat", "") for asset in assets if asset.get("Kode Alat")]
+        edit_codes = sorted(
+            [asset.get("Kode Alat", "") for asset in assets if asset.get("Kode Alat")],
+            key=asset_code_sort_key,
+        )
         if not edit_codes:
             st.info("Belum ada alat yang dapat diedit.")
         else:
@@ -798,7 +828,9 @@ elif menu == "Daftar alat":
 
     with st.expander("Daftarkan alat baru"):
         with st.form("new_asset_form"):
-            code = st.text_input("Kode alat", placeholder="Contoh: E-01")
+            code = next_asset_code(assets)
+            st.text_input("Nomor urut / Kode alat", value=code, disabled=True)
+            st.caption("Kode dibuat otomatis berurutan dan mengikuti format E-01, E-02, dan seterusnya.")
             name = st.text_input("Nama alat")
             type_brand = st.text_input("Tipe/Merk", placeholder="Contoh: Bosch GSH 500")
             condition = st.selectbox("Kondisi saat diterima", CONDITIONS)
