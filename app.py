@@ -930,7 +930,7 @@ if menu == "Ringkasan":
         st.info("Belum ada data alat untuk ditampilkan.")
 
 elif menu == "Daftar alat":
-    st.badge("DAFTAR ALAT", icon=":material/inventory_2:", color="green")
+    st.badge("DAFTAR ALAT", icon=":material/inventory_2:", color="blue")
     st.subheader("Daftar alat")
     search = st.text_input("Cari kode atau nama alat", type="search")
     status_options = ["Semua"] + sorted({asset.get("Status", "") for asset in assets if asset.get("Status")})
@@ -1018,7 +1018,7 @@ elif menu == "Daftar alat":
                 )
 
 elif menu == "Catat transaksi":
-    st.badge("CATAT TRANSAKSI", icon=":material/swap_horiz:", color="orange")
+    st.badge("CATAT TRANSAKSI", icon=":material/swap_horiz:", color="blue")
     st.subheader("Catat transaksi alat")
     transaction_type = st.selectbox("Jenis transaksi", TRANSACTION_TYPES)
 
