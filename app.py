@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from html import escape
+from io import BytesIO
 from pathlib import Path
 import re
 import secrets
@@ -8,7 +9,9 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 import gspread
+import pandas as pd
 import streamlit as st
+from ui_theme import apply_navigation_styles
 
 
 SPREADSHEET_ID = "13G_BqeqNGswSmEUq8JpRwTnGlmj-PsSoupQZM8G2jCE"
@@ -70,7 +73,11 @@ TRANSACTION_LABELS = {
 OUTGOING_TYPES = ["Pengeluaran ke Proyek Sendiri", "Pengeluaran ke Proyek", "Pengeluaran Sewa", "Peminjaman"]
 
 
-st.set_page_config(page_title="Digital Inventory Control")
+st.set_page_config(
+    page_title="Digital Inventory Control",
+    page_icon=":material/inventory_2:",
+    layout="wide",
+)
 
 
 def authenticate_user():
@@ -312,11 +319,114 @@ def whatsapp_url(phone, message):
     return f"https://wa.me/{normalized_phone}?text={quote(message, safe='')}"
 
 
-def show_records(records, alt_text):
+def show_records(records, alt_text, dashed_borders=False):
     if records:
-        st.dataframe(records, hide_index=True, alt=alt_text)
+        if dashed_borders:
+            table = pd.DataFrame(records).style.set_properties(
+                subset=["Kode Alat", "Status", "Kondisi"], **{"text-align": "center"}
+            ).set_table_styles([
+                {"selector": "th", "props": [
+                    ("border", "1px dashed #8A9AAF"),
+                    ("background-color", "#1D4ED8"),
+                    ("color", "#FFFFFF"),
+                    ("font-weight", "bold"),
+                ]},
+                {"selector": "td", "props": [("border", "1px dashed #8A9AAF")]},
+            ])
+            st.table(table, hide_index=True, alt=alt_text)
+        else:
+            st.dataframe(records, hide_index=True, alt=alt_text)
     else:
         st.info("Belum ada data.")
+
+
+def build_assets_pdf(records):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
+
+    buffer = BytesIO()
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        rightMargin=8 * mm,
+        leftMargin=8 * mm,
+        topMargin=10 * mm,
+        bottomMargin=14 * mm,
+        title="Daftar Alat - Digital Inventory Control",
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "InventoryTitle", parent=styles["Title"], fontName="Helvetica-Bold",
+        fontSize=13, leading=16, textColor=colors.HexColor("#172B4D"), alignment=0,
+        spaceAfter=3,
+    )
+    note_style = ParagraphStyle(
+        "InventoryNote", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=7, leading=9, textColor=colors.HexColor("#52627A"), spaceAfter=7,
+    )
+    header_style = ParagraphStyle(
+        "InventoryHeader", parent=styles["Normal"], fontName="Helvetica-Bold",
+        fontSize=6.5, leading=8, textColor=colors.white, alignment=1, wordWrap="CJK",
+    )
+    cell_style = ParagraphStyle(
+        "InventoryCell", parent=styles["Normal"], fontName="Helvetica",
+        fontSize=6.2, leading=7.5, textColor=colors.HexColor("#172B4D"), wordWrap="CJK",
+    )
+    centered_cell_style = ParagraphStyle(
+        "InventoryCenteredCell", parent=cell_style, alignment=1,
+    )
+
+    column_weights = [0.75, 1.35, 0.9, 1.15, 0.95, 0.7, 1.35, 1.35, 1.45, 1.0]
+    total_weight = sum(column_weights)
+    column_widths = [document.width * weight / total_weight for weight in column_weights]
+
+    def paragraph(value, style):
+        safe_value = escape(str(value or "")).replace("\n", "<br/>")
+        return Paragraph(safe_value or "-", style)
+
+    table_data = [[paragraph(header, header_style) for header in ASSET_HEADERS]]
+    for record in records:
+        table_data.append([
+            paragraph(
+                record.get(header, ""),
+                centered_cell_style if header in {"Kode Alat", "Status", "Kondisi"} else cell_style,
+            )
+            for header in ASSET_HEADERS
+        ])
+
+    table = Table(table_data, colWidths=column_widths, repeatRows=1, hAlign="LEFT")
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1D4ED8")),
+        ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#8A9AAF")),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 3),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        *[("BACKGROUND", (0, row), (-1, row), colors.HexColor("#F3F6FB"))
+          for row in range(2, len(table_data), 2)],
+    ]))
+
+    def add_page_number(canvas, doc):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(colors.HexColor("#52627A"))
+        canvas.drawRightString(doc.pagesize[0] - 8 * mm, 7 * mm, f"Halaman {doc.page}")
+        canvas.restoreState()
+
+    story = [
+        Paragraph("Daftar Alat", title_style),
+        Paragraph(
+            f"Digital Inventory Control • Dicetak {datetime.now(TIMEZONE):%d-%m-%Y %H:%M WIB} • {len(records)} alat",
+            note_style,
+        ),
+        table,
+    ]
+    document.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
+    return buffer.getvalue()
 
 
 def update_asset_details(spreadsheet, asset_sheet, code, name, rack, responsible, photo_url, type_brand):
@@ -388,6 +498,19 @@ def asset_code_sort_key(code):
     if match:
         return (0, int(match.group(1)), code.casefold())
     return (1, 0, code.casefold())
+
+
+def count_assets_by(assets, field):
+    counts = {}
+    for asset in assets:
+        value = str(asset.get(field) or "").strip() or "Belum diisi"
+        counts[value] = counts.get(value, 0) + 1
+
+    categories = sorted(counts, key=lambda value: (-counts[value], value.casefold()))
+    return {
+        "Kategori": categories,
+        "Jumlah": [counts[category] for category in categories],
+    }
 
 
 def submit_new_asset(spreadsheet, asset_sheet, transaction_sheet, assets, values):
@@ -688,8 +811,9 @@ def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name
     return transaction, approved_at
 
 
-st.title("Digital Inventory Control")
 st.caption("Developed by : mas_purnomo_st")
+st.title("Digital Inventory Control")
+st.caption("Sistem Inventaris Alat, Pantau Ketersediaan, Kondisi Alat & Lokasi")
 if "notice" in st.session_state:
     st.success(st.session_state.pop("notice"))
 
@@ -758,25 +882,55 @@ if approval_token:
                 st.rerun()
     st.stop()
 
+apply_navigation_styles()
 menu = st.sidebar.radio("Menu", ["Ringkasan", "Daftar alat", "Catat transaksi", "Laporan"])
 
 if menu == "Ringkasan":
+    st.badge("RINGKASAN", icon=":material/dashboard:", color="blue")
     st.subheader("Ringkasan alat")
+    st.caption("Ikhtisar kondisi inventaris berdasarkan data terbaru.")
     available_count = sum(asset.get("Status") == "Tersedia" for asset in assets)
     out_count = sum(asset.get("Status") in ACTIVE_OUT_STATUSES for asset in assets)
     care_count = sum(asset.get("Status") in ("Rusak", "Perlu Perawatan") for asset in assets)
     lost_count = sum(asset.get("Status") == "Hilang" for asset in assets)
     pending_count = sum(asset.get("Status") == "Menunggu Persetujuan" for asset in assets)
-    first, second = st.columns(2)
-    first.metric("Tersedia", available_count)
-    second.metric("Sedang di luar", out_count)
-    first, second = st.columns(2)
-    first.metric("Rusak / perawatan", care_count)
-    second.metric("Hilang", lost_count)
-    st.metric("Menunggu persetujuan penerima", pending_count)
-    st.caption(f"Total alat terdaftar: {len(assets)}")
+    with st.container(horizontal=True):
+        st.metric("Total alat", len(assets), border=True)
+        st.metric("Tersedia", available_count, border=True)
+        st.metric("Sedang di luar", out_count, border=True)
+        st.metric("Rusak / perawatan", care_count, border=True)
+        st.metric("Hilang", lost_count, border=True)
+        st.metric("Menunggu persetujuan", pending_count, border=True)
+
+    if assets:
+        status_summary = count_assets_by(assets, "Status")
+        warehouse_summary = count_assets_by(assets, "Gudang")
+        status_column, warehouse_column = st.columns(2)
+        with status_column:
+            with st.container(border=True):
+                st.markdown("**Alat berdasarkan status**")
+                st.bar_chart(
+                    status_summary,
+                    x="Kategori",
+                    y="Jumlah",
+                    horizontal=True,
+                    alt="Jumlah alat pada setiap status",
+                )
+        with warehouse_column:
+            with st.container(border=True):
+                st.markdown("**Alat berdasarkan gudang**")
+                st.bar_chart(
+                    warehouse_summary,
+                    x="Kategori",
+                    y="Jumlah",
+                    horizontal=True,
+                    alt="Jumlah alat pada setiap gudang",
+                )
+    else:
+        st.info("Belum ada data alat untuk ditampilkan.")
 
 elif menu == "Daftar alat":
+    st.badge("DAFTAR ALAT", icon=":material/inventory_2:", color="green")
     st.subheader("Daftar alat")
     search = st.text_input("Cari kode atau nama alat", type="search")
     status_options = ["Semua"] + sorted({asset.get("Status", "") for asset in assets if asset.get("Status")})
@@ -794,7 +948,16 @@ elif menu == "Daftar alat":
         ],
         key=lambda asset: asset_code_sort_key(asset.get("Kode Alat", "")),
     )
-    show_records(filtered, "Daftar alat beserta status dan lokasi terkini")
+    show_records(filtered, "Daftar alat beserta status dan lokasi terkini", dashed_borders=True)
+    pdf_data = build_assets_pdf(filtered) if filtered else b""
+    st.download_button(
+        "Unduh PDF daftar alat",
+        data=pdf_data,
+        file_name=f"daftar-alat-{datetime.now(TIMEZONE):%Y%m%d-%H%M}.pdf",
+        mime="application/pdf",
+        disabled=not filtered,
+        help="PDF landscape; seluruh kolom muat selebar satu halaman dan baris berlanjut ke halaman berikutnya bila diperlukan.",
+    )
 
     with st.expander("Edit data alat"):
         st.caption("Kode, kondisi, status, lokasi, dan proyek/penyewa dikelola melalui Catat transaksi agar riwayat stok tetap konsisten.")
@@ -855,6 +1018,7 @@ elif menu == "Daftar alat":
                 )
 
 elif menu == "Catat transaksi":
+    st.badge("CATAT TRANSAKSI", icon=":material/swap_horiz:", color="orange")
     st.subheader("Catat transaksi alat")
     transaction_type = st.selectbox("Jenis transaksi", TRANSACTION_TYPES)
 
@@ -977,6 +1141,7 @@ elif menu == "Catat transaksi":
         st.caption("Tombol membuka chat WhatsApp dengan pesan siap kirim; petugas tetap perlu menekan Kirim. Tautan localhost hanya berfungsi di komputer ini sampai aplikasi dihosting online.")
 
 elif menu == "Laporan":
+    st.badge("LAPORAN", icon=":material/analytics:", color="violet")
     st.subheader("Laporan kontrol alat")
     latest_transactions = derive_latest_transactions(transactions)
     today = datetime.now(TIMEZONE).date()
