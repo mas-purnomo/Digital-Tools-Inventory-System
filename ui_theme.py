@@ -190,6 +190,34 @@ def apply_navigation_styles():
             color: #FFFFFF !important;
             font-weight: 700 !important;
         }
+
+        /* Dark chart cards with high-contrast titles, labels and axes. */
+        .st-key-status_chart_panel,
+        .st-key-warehouse_chart_panel,
+        .st-key-demo_status_chart_panel,
+        .st-key-demo_warehouse_chart_panel {
+            border: 1px solid #475569 !important;
+            background: #111827 !important;
+            color: #FFFFFF !important;
+        }
+        .st-key-status_chart_panel [data-testid="stMarkdownContainer"],
+        .st-key-warehouse_chart_panel [data-testid="stMarkdownContainer"],
+        .st-key-demo_status_chart_panel [data-testid="stMarkdownContainer"],
+        .st-key-demo_warehouse_chart_panel [data-testid="stMarkdownContainer"] {
+            color: #FFFFFF !important;
+        }
+        .st-key-status_chart_panel [data-testid="stVegaLiteChart"] svg text,
+        .st-key-warehouse_chart_panel [data-testid="stVegaLiteChart"] svg text,
+        .st-key-demo_status_chart_panel [data-testid="stVegaLiteChart"] svg text,
+        .st-key-demo_warehouse_chart_panel [data-testid="stVegaLiteChart"] svg text {
+            fill: #FFFFFF !important;
+        }
+        .st-key-status_chart_panel [data-testid="stVegaLiteChart"] svg line,
+        .st-key-warehouse_chart_panel [data-testid="stVegaLiteChart"] svg line,
+        .st-key-demo_status_chart_panel [data-testid="stVegaLiteChart"] svg line,
+        .st-key-demo_warehouse_chart_panel [data-testid="stVegaLiteChart"] svg line {
+            stroke: #475569 !important;
+        }
         [data-testid="stExpander"] summary {
             color: var(--dic-navy);
             font-weight: 650;

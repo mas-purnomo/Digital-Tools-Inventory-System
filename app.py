@@ -924,7 +924,7 @@ if menu == "Ringkasan":
         warehouse_summary = count_assets_by(assets, "Gudang")
         status_column, warehouse_column = st.columns(2)
         with status_column:
-            with st.container(border=True):
+            with st.container(border=True, key="status_chart_panel"):
                 st.markdown("**Alat berdasarkan status**")
                 st.bar_chart(
                     status_summary,
@@ -934,7 +934,7 @@ if menu == "Ringkasan":
                     alt="Jumlah alat pada setiap status",
                 )
         with warehouse_column:
-            with st.container(border=True):
+            with st.container(border=True, key="warehouse_chart_panel"):
                 st.markdown("**Alat berdasarkan gudang**")
                 st.bar_chart(
                     warehouse_summary,
