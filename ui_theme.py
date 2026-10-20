@@ -105,7 +105,7 @@ def apply_navigation_styles():
 
         /* Keep sidebar navigation buttons consistently blue with white text. */
         [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] {
-            border: 2px solid #10547F !important;
+            border: 1px solid #10547F !important;
             border-radius: 0.65rem !important;
             background: #1677B8 !important;
             color: #FFFFFF !important;
@@ -133,7 +133,7 @@ def apply_navigation_styles():
             align-items: center;
             margin: 0 0 0.85rem;
             padding: 0.42rem 0.75rem;
-            border: 2px solid #9BB5C8;
+            border: 1px solid #9BB5C8;
             border-radius: 0.55rem;
             background: #FFFFFF;
             color: #526B7D;
@@ -146,7 +146,7 @@ def apply_navigation_styles():
         [data-testid="stSidebar"] .st-key-reset_demo_data button,
         [data-testid="stSidebar"] .st-key-reset_demo_data button:hover,
         [data-testid="stSidebar"] .st-key-reset_demo_data button:active {
-            border: 2px solid #8F2D25 !important;
+            border: 1px solid #8F2D25 !important;
             background: #B83D33 !important;
             color: #FFFFFF !important;
             box-shadow: none !important;
