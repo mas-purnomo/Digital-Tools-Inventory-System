@@ -57,6 +57,8 @@ def apply_navigation_styles():
             gap: 0.45rem;
         }
         section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > label,
+        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *,
+        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] [role="radio"],
         section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > div > label,
         section[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] {
             box-sizing: border-box;
@@ -76,7 +78,10 @@ def apply_navigation_styles():
         }
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked),
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:has([aria-checked="true"]),
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"] {
+        section[data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"],
+        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *:has(input:checked),
+        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *:has([aria-checked="true"]),
+        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radio"][aria-checked="true"] {
             border-color: #FFFFFF !important;
             background: var(--dic-blue) !important;
             color: #FFFFFF !important;
@@ -84,7 +89,8 @@ def apply_navigation_styles():
         }
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) *,
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:has([aria-checked="true"]) *,
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"] * {
+        section[data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"] *,
+        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radio"][aria-checked="true"] * {
             color: #FFFFFF !important;
         }
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:focus-within {
