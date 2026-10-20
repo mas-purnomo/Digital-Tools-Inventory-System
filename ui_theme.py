@@ -112,6 +112,10 @@ def apply_navigation_styles():
             border-color: #123653 !important;
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
         }
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"],
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] * {
+            color: #FFFFFF !important;
+        }
 
         /* Consistent panel borders, white surfaces and restrained shadows. */
         [data-testid="stMetric"],
