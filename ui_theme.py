@@ -170,14 +170,18 @@ def apply_navigation_styles():
             border: 1px solid var(--dic-blue-dark);
             border-radius: 0.55rem;
             background: var(--dic-blue);
-            color: #FFFFFF;
+            color: #FFFFFF !important;
             font-weight: 650;
+        }
+        [data-testid="stMain"] [data-testid="stFormSubmitButton"] button,
+        [data-testid="stMain"] [data-testid="stFormSubmitButton"] button * {
+            color: #FFFFFF !important;
         }
         [data-testid="stMain"] [data-testid="stButton"] button[kind="primary"]:hover,
         [data-testid="stMain"] [data-testid="stFormSubmitButton"] button:hover {
             border-color: #0B456C;
             background: var(--dic-blue-dark);
-            color: #FFFFFF;
+            color: #FFFFFF !important;
         }
         </style>
         """

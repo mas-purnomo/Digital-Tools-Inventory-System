@@ -327,8 +327,8 @@ def show_records(records, alt_text, dashed_borders=False):
             ).set_table_styles([
                 {"selector": "th", "props": [
                     ("border", "1px dashed #8A9AAF"),
-                    ("background-color", "#1D4ED8"),
-                    ("color", "#FFFFFF"),
+                    ("background-color", "#1D4ED8 !important"),
+                    ("color", "#FFFFFF !important"),
                     ("font-weight", "bold"),
                 ]},
                 {"selector": "td", "props": [("border", "1px dashed #8A9AAF")]},
