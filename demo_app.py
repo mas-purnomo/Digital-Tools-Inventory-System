@@ -123,7 +123,7 @@ with st.sidebar.container(border=True):
             st.rerun()
 
 menu = st.session_state.demo_navigation
-if st.sidebar.button("Reset data demo"):
+if st.sidebar.button("Reset data demo", key="reset_demo_data"):
     st.session_state.demo_assets = sample_assets()
     st.session_state.demo_transactions = sample_transactions()
     st.rerun()
@@ -201,7 +201,8 @@ elif menu == "Daftar alat":
             ]},
             {"selector": "th, td", "props": [("border", "1px dashed #8A9AAF")]},
         ])
-        st.table(table, hide_index=True)
+        with st.container(key="demo_asset_list_table"):
+            st.table(table, hide_index=True)
     else:
         st.info("Tidak ada alat yang cocok dengan pencarian atau filter.")
 

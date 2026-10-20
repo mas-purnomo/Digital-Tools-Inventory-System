@@ -965,7 +965,8 @@ elif menu == "Daftar alat":
         ],
         key=lambda asset: asset_code_sort_key(asset.get("Kode Alat", "")),
     )
-    show_records(filtered, "Daftar alat beserta status dan lokasi terkini", dashed_borders=True)
+    with st.container(key="asset_list_table"):
+        show_records(filtered, "Daftar alat beserta status dan lokasi terkini", dashed_borders=True)
     pdf_data = build_assets_pdf(filtered) if filtered else b""
     st.download_button(
         "Unduh PDF daftar alat",

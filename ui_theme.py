@@ -127,6 +127,19 @@ def apply_navigation_styles():
             outline-offset: 2px;
         }
 
+        /* The demo reset action is destructive within the temporary session. */
+        [data-testid="stSidebar"] .st-key-reset_demo_data button,
+        [data-testid="stSidebar"] .st-key-reset_demo_data button:hover,
+        [data-testid="stSidebar"] .st-key-reset_demo_data button:active {
+            border: 2px solid #8F2D25 !important;
+            background: #B83D33 !important;
+            color: #FFFFFF !important;
+            box-shadow: none !important;
+        }
+        [data-testid="stSidebar"] .st-key-reset_demo_data button * {
+            color: #FFFFFF !important;
+        }
+
         /* Consistent panel borders, white surfaces and restrained shadows. */
         [data-testid="stMetric"],
         [data-testid="stForm"],
@@ -150,6 +163,17 @@ def apply_navigation_styles():
         }
         [data-testid="stForm"] {
             padding: 1rem;
+            border: 2px solid #9BB5C8 !important;
+            background: #FFFFFF !important;
+            box-shadow: 0 4px 12px rgba(18, 54, 83, 0.09);
+        }
+        .st-key-asset_list_table table thead th,
+        .st-key-asset_list_table table thead th *,
+        .st-key-demo_asset_list_table table thead th,
+        .st-key-demo_asset_list_table table thead th * {
+            background-color: #1D4ED8 !important;
+            color: #FFFFFF !important;
+            font-weight: 700 !important;
         }
         [data-testid="stExpander"] summary {
             color: var(--dic-navy);
