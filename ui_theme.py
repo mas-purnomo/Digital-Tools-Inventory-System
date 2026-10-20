@@ -105,7 +105,7 @@ def apply_navigation_styles():
 
         /* Keep sidebar navigation buttons consistently blue with white text. */
         [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] {
-            border: 3px solid #10547F !important;
+            border: 2px solid #10547F !important;
             border-radius: 0.65rem !important;
             background: #1677B8 !important;
             color: #FFFFFF !important;
@@ -125,6 +125,21 @@ def apply_navigation_styles():
         [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"]:focus-visible {
             outline: 3px solid #F6C453;
             outline-offset: 2px;
+        }
+
+        /* Give the developer credit a clear, quiet frame. */
+        .developer-credit {
+            display: inline-flex;
+            align-items: center;
+            margin: 0 0 0.85rem;
+            padding: 0.42rem 0.75rem;
+            border: 2px solid #9BB5C8;
+            border-radius: 0.55rem;
+            background: #FFFFFF;
+            color: #526B7D;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
         }
 
         /* The demo reset action is destructive within the temporary session. */

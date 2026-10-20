@@ -811,7 +811,7 @@ def approve_transaction(spreadsheet, asset_sheet, transaction_sheet, token, name
     return transaction, approved_at
 
 
-st.caption("Developed by : mas_purnomo_st")
+st.markdown('<div class="developer-credit">Developed by : mas_purnomo_st</div>', unsafe_allow_html=True)
 st.title("Digital Inventory Control")
 st.caption("Sistem Inventaris Alat, Pantau Ketersediaan, Kondisi Alat & Lokasi")
 if "notice" in st.session_state:

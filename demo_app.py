@@ -96,7 +96,7 @@ if "demo_transactions" not in st.session_state:
     st.session_state.demo_transactions = sample_transactions()
 
 
-st.caption("Developed by : mas_purnomo_st")
+st.markdown('<div class="developer-credit">Developed by : mas_purnomo_st</div>', unsafe_allow_html=True)
 st.title("Digital Inventory Control")
 st.caption("Sistem Inventaris Alat, Pantau Ketersediaan, Kondisi Alat & Lokasi")
 st.info(
