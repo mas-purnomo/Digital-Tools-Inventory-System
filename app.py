@@ -890,12 +890,11 @@ if "main_navigation" not in st.session_state:
 with st.sidebar.container(border=True):
     st.markdown("**Menu**")
     for menu_option in menu_options:
-        is_selected = st.session_state.main_navigation == menu_option
         button_key = f"main_navigation_{menu_option.casefold().replace(' ', '_')}"
         if st.button(
             menu_option,
             key=button_key,
-            type="primary" if is_selected else "secondary",
+            type="primary",
             width="stretch",
         ):
             st.session_state.main_navigation = menu_option

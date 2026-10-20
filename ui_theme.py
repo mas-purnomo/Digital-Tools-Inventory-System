@@ -103,18 +103,28 @@ def apply_navigation_styles():
             outline-offset: 2px;
         }
 
-        /* Give the new native navigation buttons a firmer outline. */
-        [data-testid="stSidebar"] [data-testid="stButton"] button {
-            border: 3px solid #7899B4 !important;
-            border-radius: 0.65rem !important;
-        }
+        /* Keep sidebar navigation buttons consistently blue with white text. */
         [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] {
-            border-color: #123653 !important;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
-        }
-        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"],
-        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] * {
+            border: 3px solid #10547F !important;
+            border-radius: 0.65rem !important;
+            background: #1677B8 !important;
             color: #FFFFFF !important;
+            box-shadow: none !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] *,
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"]:hover,
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"]:active {
+            color: #FFFFFF !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"]:hover,
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"]:active {
+            border-color: #10547F !important;
+            background: #1677B8 !important;
+            box-shadow: none !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"]:focus-visible {
+            outline: 3px solid #F6C453;
+            outline-offset: 2px;
         }
 
         /* Consistent panel borders, white surfaces and restrained shadows. */
