@@ -3,7 +3,7 @@ import streamlit as st
 
 def apply_navigation_styles():
     """Apply the navy-and-blue panel palette to the main Streamlit app."""
-    st.markdown(
+    st.html(
         """
         <style>
         :root {
@@ -18,7 +18,7 @@ def apply_navigation_styles():
 
         /* Pale blue page canvas with clean white content panels. */
         [data-testid="stAppViewContainer"] {
-            background: var(--dic-canvas);
+            background: var(--dic-canvas) !important;
             color: var(--dic-ink);
         }
         [data-testid="stHeader"] {
@@ -36,66 +36,81 @@ def apply_navigation_styles():
             color: var(--dic-ink);
         }
 
-        /* Navy sidebar echoes the dark information panel in the reference. */
-        section[data-testid="stSidebar"] {
-            background: linear-gradient(180deg, #10324E 0%, #0C2941 100%);
-            border-right: 1px solid #254B68;
+        /* Light blue sidebar surface, with dark readable labels. */
+        [data-testid="stSidebar"],
+        [data-testid="stSidebar"] > div,
+        [data-testid="stSidebarContent"] {
+            background: #EAF2F8 !important;
+            border-right: 1px solid #D4E1EB;
         }
-        section[data-testid="stSidebar"] h1,
-        section[data-testid="stSidebar"] h2,
-        section[data-testid="stSidebar"] h3,
-        section[data-testid="stSidebar"] p,
-        section[data-testid="stSidebar"] label,
-        section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
-            color: #F2F7FB;
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3,
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] {
+            color: var(--dic-ink);
         }
 
-        /* Sidebar navigation cards: visible outlines and a strong active state. */
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] {
+        /* Bordered sidebar menu cards with a brighter selected option.
+           The broad selectors support the label and wrapper layouts used by
+           different Streamlit/BaseWeb versions. */
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] {
             display: flex;
             flex-direction: column;
             gap: 0.45rem;
         }
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > label,
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *,
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] [role="radio"],
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > div > label,
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] {
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *,
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label,
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radio"],
+        [data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] {
             box-sizing: border-box;
-            min-height: 2.75rem;
+            min-height: 2.65rem;
             margin: 0;
-            padding: 0.65rem 0.85rem;
-            border: 1px solid #1D4ED8 !important;
-            border-radius: 0.7rem !important;
-            background: #1D4ED8 !important;
-            color: #F2F7FB !important;
-            font-weight: 650;
+            padding: 0.55rem 0.75rem;
+            border: 1px solid #B9D0E2 !important;
+            border-radius: 0.65rem !important;
+            background: #FFFFFF !important;
+            color: #183247 !important;
+            font-weight: 600;
             transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
         }
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label:hover {
-            border-color: #10547F !important;
-            background: #10547F !important;
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *:hover,
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label:hover {
+            border-color: #5A9BC7 !important;
+            background: #E8F3FC !important;
+            box-shadow: 0 2px 7px rgba(18, 54, 83, 0.1);
         }
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked),
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label:has([aria-checked="true"]),
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"],
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *:has(input:checked),
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *:has([aria-checked="true"]),
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radio"][aria-checked="true"] {
-            border-color: #FFFFFF !important;
-            background: var(--dic-blue) !important;
-            color: #FFFFFF !important;
-            box-shadow: inset 0 0 0 1px #FFFFFF, 0 4px 12px rgba(3, 17, 30, 0.28);
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked),
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:has([aria-checked="true"]),
+        [data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"],
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *:has(input:checked),
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] > *:has([aria-checked="true"]),
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radio"][aria-checked="true"] {
+            border-color: #1D4ED8 !important;
+            background: #DCEBFF !important;
+            color: #123653 !important;
+            box-shadow: inset 0 0 0 1px #1D4ED8, 0 3px 8px rgba(18, 54, 83, 0.1);
         }
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) *,
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label:has([aria-checked="true"]) *,
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"] *,
-        section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radio"][aria-checked="true"] * {
-            color: #FFFFFF !important;
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) *,
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:has([aria-checked="true"]) *,
+        [data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"] *,
+        [data-testid="stSidebar"] [data-testid="stRadio"] [role="radio"][aria-checked="true"] * {
+            color: #123653 !important;
         }
-        section[data-testid="stSidebar"] [data-testid="stRadio"] label:focus-within {
+        [data-testid="stSidebar"] [data-testid="stRadio"] label:focus-within {
             outline: 3px solid #F6C453;
             outline-offset: 2px;
+        }
+
+        /* Give the new native navigation buttons a firmer outline. */
+        [data-testid="stSidebar"] [data-testid="stButton"] button {
+            border: 3px solid #7899B4 !important;
+            border-radius: 0.65rem !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stButton"] button[kind="primary"] {
+            border-color: #123653 !important;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
         }
 
         /* Consistent panel borders, white surfaces and restrained shadows. */
@@ -161,6 +176,5 @@ def apply_navigation_styles():
             color: #FFFFFF;
         }
         </style>
-        """,
-        unsafe_allow_html=True,
+        """
     )

@@ -883,7 +883,25 @@ if approval_token:
     st.stop()
 
 apply_navigation_styles()
-menu = st.sidebar.radio("Menu", ["Ringkasan", "Daftar alat", "Catat transaksi", "Laporan"])
+menu_options = ["Ringkasan", "Daftar alat", "Catat transaksi", "Laporan"]
+if "main_navigation" not in st.session_state:
+    st.session_state.main_navigation = "Ringkasan"
+
+with st.sidebar.container(border=True):
+    st.markdown("**Menu**")
+    for menu_option in menu_options:
+        is_selected = st.session_state.main_navigation == menu_option
+        button_key = f"main_navigation_{menu_option.casefold().replace(' ', '_')}"
+        if st.button(
+            menu_option,
+            key=button_key,
+            type="primary" if is_selected else "secondary",
+            width="stretch",
+        ):
+            st.session_state.main_navigation = menu_option
+            st.rerun()
+
+menu = st.session_state.main_navigation
 
 if menu == "Ringkasan":
     st.badge("RINGKASAN", icon=":material/dashboard:", color="blue")
