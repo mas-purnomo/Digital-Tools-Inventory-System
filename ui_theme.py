@@ -63,24 +63,24 @@ def apply_navigation_styles():
             min-height: 2.75rem;
             margin: 0;
             padding: 0.65rem 0.85rem;
-            border: 1px solid #42637C !important;
+            border: 1px solid #1D4ED8 !important;
             border-radius: 0.7rem !important;
-            background: #173B57 !important;
+            background: #1D4ED8 !important;
             color: #F2F7FB !important;
             font-weight: 650;
             transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
         }
         section[data-testid="stSidebar"] [data-testid="stRadio"] [role="radiogroup"] label:hover {
-            border-color: #7CC4EE !important;
-            background: #204E70 !important;
+            border-color: #10547F !important;
+            background: #10547F !important;
         }
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked),
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:has([aria-checked="true"]),
         section[data-testid="stSidebar"] [data-testid="stRadio"] label[aria-checked="true"] {
-            border-color: #71C5F1 !important;
+            border-color: #FFFFFF !important;
             background: var(--dic-blue) !important;
             color: #FFFFFF !important;
-            box-shadow: 0 4px 12px rgba(3, 17, 30, 0.28);
+            box-shadow: inset 0 0 0 1px #FFFFFF, 0 4px 12px rgba(3, 17, 30, 0.28);
         }
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) *,
         section[data-testid="stSidebar"] [data-testid="stRadio"] label:has([aria-checked="true"]) *,
